@@ -1,0 +1,18 @@
+{
+    "compilerOptions": {
+        "module": "CommonJS",
+        "lib": ["ESNext"],
+        "target": "es6",
+        "moduleResolution": "node",
+        "esModuleInterop": true,
+        "sourceMap": true,
+        "declaration": true,
+        "declarationDir": "./lib",
+        "outDir": "./lib",
+        "experimentalDecorators": true,
+        "emitDecoratorMetadata": true,
+        "strictNullChecks": true,
+        "baseUrl": ".",
+    },
+    "include": ["src/**/*"]
+}
