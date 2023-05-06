@@ -39,12 +39,12 @@ const LookupTable = [
 /**
  * Calculates a CRC-16 ARC value over the given input.
  */
-export function CalcCRC16(input: string): number
+export function CalcCRC16(input: Buffer): number
 {
     let crc = 0;
 
     for (let i = 0, l = input.length; i < l; i++) {
-        crc = LookupTable[(crc ^ input.charCodeAt(i)) & 0xFF] ^ ((crc >> 8) & 0xFF);
+        crc = LookupTable[(crc ^ input[i]) & 0xFF] ^ ((crc >> 8) & 0xFF);
     }
 
     return crc;

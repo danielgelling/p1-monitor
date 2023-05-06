@@ -4,6 +4,7 @@ import { SerialPort, SerialPortOpenOptions } from 'serialport';
 import { AutoDetectTypes }                   from '@serialport/bindings-cpp';
 import { CalcCRC16 }                         from './Util/CalcCRC16';
 import { ChecksumMismatchError }             from './ChecksumMismatchError';
+import { P1Parser }                          from './P1Parser';
 
 export interface P1Monitor {
     /**
@@ -39,8 +40,10 @@ export class P1Monitor extends EventEmitter
      */
     private _waitingForChecksum = false;
 
-    public constructor(private readonly options: P1MonitorOptions)
-    {
+    public constructor(
+        private readonly parser: P1Parser,
+        private readonly options: P1MonitorOptions,
+    ) {
         super();
 
         this._port = new SerialPort({ autoOpen: true, ...options });
@@ -73,7 +76,7 @@ export class P1Monitor extends EventEmitter
             return;
         }
 
-        // If the start character appears after an end character, discard the
+        // If a start character appears after an end character, discard the
         // data before the start character.
         if (startIndex > stopIndex) {
             const remaining = this._buffer.subarray(startIndex);
@@ -111,20 +114,23 @@ export class P1Monitor extends EventEmitter
 
     private handlePacket(data: Buffer, checksum: Buffer): void
     {
-        if (CalcCRC16(data.toString()) !== parseInt(checksum.toString(), 16)) {
+        if (CalcCRC16(data) !== parseInt(checksum.toString(), 16)) {
             this.emit('error', new ChecksumMismatchError(
                 parseInt(checksum.toString(), 16),
-                CalcCRC16(data.toString()),
+                CalcCRC16(data),
             ));
 
             return;
         }
 
-        this.emit('data');
+        // Parse the data, without the start and stop characters.
+        const parsed = this.parser.parse(data.subarray(1, -1));
+
+        this.emit('data', parsed);
     }
 }
 
-type P1MonitorOptions = { packet: {
+export type P1MonitorOptions = { packet: {
     startChar: string;
     stopChar: string;
 }; } & Omit<SerialPortOpenOptions<AutoDetectTypes>, 'autoOpen'>;
