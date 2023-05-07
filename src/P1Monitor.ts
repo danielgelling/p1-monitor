@@ -126,6 +126,8 @@ export class P1Monitor extends EventEmitter
         // Parse the data, without the start and stop characters.
         const parsed = this.parser.parse(data.subarray(1, -1));
 
+        console.log(parsed, JSON.stringify(parsed));
+
         this.emit('data', parsed);
     }
 }
