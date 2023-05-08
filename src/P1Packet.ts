@@ -6,26 +6,83 @@ export type P1Packet = {
 
     version?: string;
     transmitted_at?: Date | DateTime;
-    equipment_id?: string;
 
-    electricity?: {
-        tariff: string;
+    electricity: {
+        equipment_id?: string;
+        tariff?: number;
         received: {
-            tariff1: Value<'kWh'>;
-            tariff2: Value<'kWh'>;
-            active:  Value<'kW'>;
+            tariff1?: Value<'kWh'>;
+            tariff2?: Value<'kWh'>;
+            active?:  Value<'kW'>;
         };
         delivered: {
-            tariff1: Value<'kWh'>;
-            tariff2: Value<'kWh'>;
-            active: Value<'kW'>;
+            tariff1?: Value<'kWh'>;
+            tariff2?: Value<'kWh'>;
+            active?: Value<'kW'>;
         };
+        failures: {
+            count?: number;
+            lasting_count?: number;
+            log: {
+                start_time: Date | DateTime;
+                duration: Value<'s'>;
+            }[];
+        };
+        sags: {
+            line1?: number;
+            line2?: number;
+            line3?: number;
+        };
+        swells: {
+            line1?: number;
+            line2?: number;
+            line3?: number;
+        };
+        active: {
+            voltage: {
+                line1?: Value<'V'>;
+                line2?: Value<'V'>;
+                line3?: Value<'V'>;
+            };
+            current: {
+                line1?: Value<'A'>;
+                line2?: Value<'A'>;
+                line3?: Value<'A'>;
+            };
+            power: {
+                positive: {
+                    line1?: Value<'kW'>;
+                    line2?: Value<'kW'>;
+                    line3?: Value<'kW'>;
+                };
+                negative: {
+                    line1?: Value<'kW'>;
+                    line2?: Value<'kW'>;
+                    line3?: Value<'kW'>;
+                };
+            };
+        };
+    };
+    gas?: {
+        equipment_id: string;
+        measured_at: Date | DateTime;
+        received: Value<'m3'>;
+    };
+    heat?: {
+        equipment_id: string;
+        measured_at: Date | DateTime;
+        received: Value<'GJ'>;
+    };
+    water?: {
+        equipment_id: string;
+        measured_at: Date | DateTime;
+        received: Value<'m3'>;
     };
 };
 
 export type ValueUnit = 'kWh' | 'kW' | 'V' | 'A' | 'm3' | 'GJ' | 's';
 
-type Value<T extends ValueUnit> = number | {
+export type Value<T extends ValueUnit> = number | {
     value: number;
     unit: T;
 };
@@ -41,6 +98,11 @@ type ArrayType = {
     items: ValueType[];
 };
 
+type ObjectType = {
+    type: 'object';
+    items: ValueType[];
+};
+
 type SimpleType = {
     type: 'integer' | 'string' | 'hex-string' | 'boolean' | 'timestamp';
 };
@@ -48,8 +110,11 @@ type SimpleType = {
 export type ValueType = {
     path: string;
     unit?: ValueUnit;
-} & (FloatType | ArrayType | SimpleType);
+} & (FloatType | ArrayType | ObjectType| SimpleType);
 
+/**
+ * @see https://www.netbeheernederland.nl/_upload/Files/Slimme_meter_15_a727fce1f1.pdf
+ */
 export const OBISTypeMapping: {[key in string]: ValueType} = {
     '1-3:0.2.8': {
         path: 'version',
@@ -60,7 +125,7 @@ export const OBISTypeMapping: {[key in string]: ValueType} = {
         type: 'timestamp',
     },
     '0-0:96.1.1': {
-        path: 'equipment_id',
+        path: 'electricity.equipment_id',
         type: 'hex-string',
     },
     '1-0:1.8.1': {
@@ -147,7 +212,7 @@ export const OBISTypeMapping: {[key in string]: ValueType} = {
         precision: 0,
         scale: 0,
     },
-    '1-0:57.32.0': {
+    '1-0:72.32.0': {
         path: 'electricity.sags.line3',
         type: 'float',
         precision: 0,
@@ -165,7 +230,7 @@ export const OBISTypeMapping: {[key in string]: ValueType} = {
         precision: 0,
         scale: 0,
     },
-    '1-0:57.36.0': {
+    '1-0:72.36.0': {
         path: 'electricity.swells.line3',
         type: 'float',
         precision: 0,
@@ -271,7 +336,7 @@ export const OBISTypeMapping: {[key in string]: ValueType} = {
     },
     '0-1:24.2.1': {
         path: 'mbus.device1.values',
-        type: 'array',
+        type: 'object',
         items: [{
             path: 'measured_at',
             type: 'timestamp',
@@ -291,7 +356,7 @@ export const OBISTypeMapping: {[key in string]: ValueType} = {
     },
     '0-2:24.2.1': {
         path: 'mbus.device2.values',
-        type: 'array',
+        type: 'object',
         items: [{
             path: 'measured_at',
             type: 'timestamp',
@@ -311,7 +376,7 @@ export const OBISTypeMapping: {[key in string]: ValueType} = {
     },
     '0-3:24.2.1': {
         path: 'mbus.device3.values',
-        type: 'array',
+        type: 'object',
         items: [{
             path: 'measured_at',
             type: 'timestamp',
@@ -331,7 +396,7 @@ export const OBISTypeMapping: {[key in string]: ValueType} = {
     },
     '0-4:24.2.1': {
         path: 'mbus.device4.values',
-        type: 'array',
+        type: 'object',
         items: [{
             path: 'measured_at',
             type: 'timestamp',
@@ -340,6 +405,60 @@ export const OBISTypeMapping: {[key in string]: ValueType} = {
             type: 'float',
             unit: 'm3',
             precision: 8,
+            scale: 3,
+        }],
+    },
+};
+
+export type MBusDevice = 'gas' | 'heat' | 'water';
+
+export type MBusData = {
+    name: MBusDevice;
+    values: ValueType[];
+};
+
+/**
+ * Mapping of M-BUS devices by their type (OBIS: `0-n:24.1.0`).
+ *
+ * @see page 13, table 2: https://oms-group.org/fileadmin/files/download4all/specification/Vol2/4.0.2/OMS-Spec_Vol2_Primary_v402.pdf
+ */
+export const MBusTypeMapping: {[key in number]: MBusData} = {
+    3: {
+        name: 'gas',
+        values: [{
+            path: 'measured_at',
+            type: 'timestamp',
+        }, {
+            path: 'received',
+            type: 'float',
+            unit: 'm3',
+            precision: 8,
+            scale: 3,
+        }],
+    },
+    4: {
+        name: 'heat',
+        values: [{
+            path: 'measured_at',
+            type: 'timestamp',
+        }, {
+            path: 'received',
+            type: 'float',
+            unit: 'GJ',
+            precision: Infinity,
+            scale: 2,
+        }],
+    },
+    7: {
+        name: 'water',
+        values: [{
+            path: 'measured_at',
+            type: 'timestamp',
+        }, {
+            path: 'received',
+            type: 'float',
+            unit: 'm3',
+            precision: Infinity,
             scale: 3,
         }],
     },

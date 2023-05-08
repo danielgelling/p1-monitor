@@ -1,7 +1,7 @@
-import { OBISTypeMapping, P1Packet, ValueType } from './P1Packet';
-import { DateTime, IANAZone }                   from 'luxon';
-import * as console                             from 'console';
-import { NestedObject }                         from './Util/NestedObject';
+import { MBusTypeMapping, OBISTypeMapping, P1Packet, Value, ValueType } from './P1Packet';
+import { DateTime, IANAZone }                                           from 'luxon';
+import * as console                                                     from 'console';
+import { NestedObject }                                                 from './Util/NestedObject';
 
 export type P1ParserOptions = {
     /**
@@ -27,6 +27,7 @@ export type P1ParserOptions = {
 export class P1Parser
 {
     private _packet: P1Packet;
+    private _mbus: { [key in number]: { [path in string]: unknown } } = {};
 
     private readonly _timezone: IANAZone;
 
@@ -47,6 +48,18 @@ export class P1Parser
         this._packet = {
             vendor_id: data.subarray(0, 3).toString(),
             model_id:  data.subarray(5, eol).toString(),
+            version: undefined,
+            transmitted_at: undefined,
+            electricity: {
+                equipment_id: undefined,
+                tariff: undefined,
+                received: {},
+                delivered: {},
+                active: { current: {}, power: { negative: {}, positive: {} }, voltage: {} },
+                failures: { count: undefined, lasting_count: undefined, log: [] },
+                sags: {},
+                swells: {},
+            },
         };
 
         data = data.subarray(eol + 2);
@@ -72,29 +85,22 @@ export class P1Parser
         const delim = line.indexOf('(');
         const obis  = line.subarray(0, delim).toString();
         const value = line.subarray(delim).toString();
+        const mbus  = obis.match(/0-(?<index>[1-4]):(?<obis>.*)/);
+
+        if (null !== mbus) {
+            this.parseMBusData(mbus, value);
+            return;
+        }
 
         const mapping = OBISTypeMapping[obis];
 
         if (typeof mapping === 'undefined') {
-            // console.log('Ignoring line:', obis);
+            console.log(`Ignoring line. OBIS code '${obis}' not mapped`);
             return;
         }
 
-        const mapPaths = mapping.path.split('.');
-
-
-        console.log('VALUEEEEE: ', value, mapping.path);
-
-        if (mapPaths.length === 1) {
-            if (typeof this._packet[mapping.path] === 'undefined') {
-                this._packet[mapping.path] = this.parseValue(mapping, value);
-                return;
-            }
-
-            // const [path, parsed] = this.parseValue(mapping, value);
-
-            // this._packet[mapping.path][path] = parsed;
-
+        if (mapping.path.indexOf('.') === -1) {
+            this._packet[mapping.path] = this.parseValue(mapping, value);
             return;
         }
 
@@ -117,8 +123,10 @@ export class P1Parser
                         return String.fromCharCode(parseInt(v, 16));
                     }).join('');
             case 'timestamp': {
-                // Ignore the (), but also ignore the last character which
-                // represents DST or not, but is not actually used by Smart Meter implementations.
+                // Ignore the (), but also ignore the last character (S/W) that
+                // represents DST or not, which is not actually used by most
+                // Smart Meter implementations as they transmit times in their
+                // current timezone.
                 value = value.substring(1, value.length - 2);
 
                 const result = DateTime.fromFormat(
@@ -153,46 +161,106 @@ export class P1Parser
                 const parts = value.substring(1, value.length - 1).split(')(');
                 const result = {};
 
-                if (mapping.items.length === parts.length) {
-                    for (const [i, item] of mapping.items.entries()) {
-                        result[item.path] = this.parseValue(item, '(' + parts[i] + ')');
-                    }
-
-                    return result;
-                }
-
                 const length = Number(parts[0]);
-                const obis = parts[1];
-
-                const values = parts.slice(2);
+                const values = parts.slice(2); // Remove the length and OBIS code.
 
                 for (const [index, part] of values.entries()) {
                     const map = mapping.items[index % mapping.items.length];
 
-                    // When there are only as many values as there are paths.
-                    if (mapping.items.length >= values.length) {
-                        result[map.path].push(this.parseValue(map, '(' + part + ')'));
-                        continue;
-                    }
-
-                    const c = index % mapping.items.length === 0 ? index : index -1;
+                    // Determine the index of the item based on how many values
+                    // are mapped. So we combine them into a single object that
+                    // is to be added to the array of objects.
+                    const c = (index % mapping.items.length) === 0
+                        ? index
+                        : index - 1;
 
                     if (typeof result[c] === 'undefined') {
-                        result[c] = {
-                            [map.path]: this.parseValue(map, '(' + part + ')'),
-                        };
-                        continue;
+                        result[c] = {};
                     }
 
                     result[c][map.path] = this.parseValue(map, '(' + part + ')');
                 }
 
                 if (Object.values(result).length !== length) {
-                    console.log(result, parts,  values);
                     console.log('Expected length does not match actual value count.');
                 }
 
                 return Object.values(result);
+            }
+            case 'object': {
+                const parts = value.substring(1, value.length - 1).split(')(');
+                const result = {};
+
+                if (mapping.items.length !== parts.length) {
+                    console.log('Not the same amount of items in mapping vs object.');
+                }
+
+                for (const [i, item] of mapping.items.entries()) {
+                    result[item.path] = this.parseValue(item, '(' + parts[i] + ')');
+                }
+
+                return result;
+            }
+        }
+    }
+
+    private parseMBusData(mbus: RegExpMatchArray, value: string): void
+    {
+        if (typeof mbus.groups === 'undefined') {
+            return;
+        }
+
+        if (typeof this._mbus[mbus.groups.index] === 'undefined') {
+            this._mbus[mbus.groups.index] = {};
+        }
+
+        switch (mbus.groups.obis) {
+            case '24.1.0':
+                this._mbus[mbus.groups.index].type = this.parseValue({
+                    path: 'type',
+                    type: 'integer',
+                }, value);
+
+                return;
+            case '96.1.0':
+                this._mbus[mbus.groups.index].equipment_id = this.parseValue({
+                    path: 'equipment_id',
+                    type: 'hex-string',
+                }, value);
+
+                return;
+            case '24.2.1': {
+                if (typeof this._mbus[mbus.groups.index].type === 'undefined') {
+                    // FIXME: make sure to also be able to parse messages
+                    //        where the MBus device type comes after the values.
+
+                    console.log('Ignoring MBus value. Device-Type not (yet) known');
+                    return;
+                }
+
+                const mapping = MBusTypeMapping[this._mbus[mbus.groups.index].type];
+
+                if (typeof mapping === 'undefined') {
+                    console.log(`Ignoring line. MBus Device-Type '${this._mbus[mbus.groups.index].type}' not mapped`);
+                    return;
+                }
+
+                const values = this.parseValue({
+                    path: 'values',
+                    type: 'object',
+                    items: mapping.values,
+                }, value) as {
+                    measured_at: Date | DateTime;
+                    received: Value<'m3'> & Value<'GJ'>;
+                };
+
+                this._packet[mapping.name] = {
+                    equipment_id: this._mbus[mbus.groups.index].equipment_id as string,
+                    measured_at: values.measured_at,
+                    received: values.received,
+                };
+
+                return;
             }
         }
     }

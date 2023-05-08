@@ -6,11 +6,40 @@ import { CalcCRC16 }                         from './Util/CalcCRC16';
 import { ChecksumMismatchError }             from './ChecksumMismatchError';
 import { P1Parser }                          from './P1Parser';
 
+export type P1MonitorOptions = {
+    packet: {
+        /**
+         * The character that denotes the start of a P1 message.
+         *
+         * Defaults to: `/`
+         */
+        startChar?: string;
+        /**
+         * The character that denotes the end of a P1 message.
+         *
+         * Defaults to: `!`
+         */
+        stopChar?: string;
+    };
+    /**
+     * A timeout, in milliseconds, after the moment we received our last message,
+     * to consider the serial port disconnected.
+     *
+     * Defaults to: 11 seconds.
+     */
+    timeout?: number;
+} & Omit<SerialPortOpenOptions<AutoDetectTypes>, 'autoOpen'>;
+
 export interface P1Monitor {
     /**
      * Emitted when the P1 monitor is connected to the serial port.
      */
     on(event: 'connected', listener: () => void): this;
+
+    /**
+     * Emitted when the P1 monitor is disconnected from the serial port.
+     */
+    on(event: 'disconnected', listener: () => void): this;
 
     /**
      * Emitted when new data is received on the serial port.
@@ -30,8 +59,14 @@ export interface P1Monitor {
 
 export class P1Monitor extends EventEmitter
 {
+    /**
+     * The serial port API connected to the P1 port.
+     */
     private readonly _port: SerialPort;
 
+    /**
+     * A buffer to store the incoming data in until a stop character is received.
+     */
     private _buffer = Buffer.alloc(0);
 
     /**
@@ -39,6 +74,13 @@ export class P1Monitor extends EventEmitter
      *  in the buffer don't yet constitute a full checksum.
      */
     private _waitingForChecksum = false;
+
+    /**
+     * The datetime we received and verified the latest packet.
+     */
+    private _lastPacketReceivedAt?: Date;
+
+    private _disconnectTimeout: NodeJS.Timeout;
 
     public constructor(
         private readonly parser: P1Parser,
@@ -54,20 +96,38 @@ export class P1Monitor extends EventEmitter
         this._port.on('data', (d: Buffer) => this.handleIncomingData(d));
     }
 
+    /**
+     * Dispose of the monitor.
+     */
+    public async dispose(): Promise<void>
+    {
+        return new Promise(resolve => {
+            this._disconnectTimeout && clearTimeout(this._disconnectTimeout);
+
+            this.removeAllListeners();
+            this._port.removeAllListeners();
+
+            this._port.close(() => resolve());
+        });
+    }
+
+    private count = 0;
+
     private handleIncomingData(data: Buffer): void
     {
-        // Add the data to the buffer.
+        // Add the incoming data to the buffer.
         this._buffer = Buffer.concat([this._buffer, data]);
 
-        // Keep buffering the incoming data until we find a stop character.
-        if (data.indexOf(this.options.packet.stopChar) === -1
+        // Keep buffering the incoming data until a stop character is found.
+        // Unless we're waiting to receive (the rest of) the checksum.
+        if (data.indexOf(this.options.packet.stopChar ?? '!') === -1
             && ! this._waitingForChecksum
         ) {
             return;
         }
 
-        const startIndex = this._buffer.indexOf(this.options.packet.startChar);
-        const stopIndex  = this._buffer.indexOf(this.options.packet.stopChar);
+        const startIndex = this._buffer.indexOf(this.options.packet.startChar ?? '/');
+        const stopIndex  = this._buffer.indexOf(this.options.packet.stopChar ?? '!');
 
         // If we haven't found a start character clear the buffer and
         // keep waiting for more data.
@@ -83,7 +143,6 @@ export class P1Monitor extends EventEmitter
             this._buffer = Buffer.alloc(0);
 
             this.handleIncomingData(remaining);
-
             return;
         }
 
@@ -97,10 +156,42 @@ export class P1Monitor extends EventEmitter
 
         this._waitingForChecksum = false;
 
-        this.handlePacket(
-            this._buffer.subarray(startIndex, stopIndex + 1),
-            checksum,
-        );
+        // Read a full data packet from the buffer.
+        data = this._buffer.subarray(startIndex, stopIndex + 1);
+
+        // Verify that the calculated checksum matches the received checksum.
+        if (CalcCRC16(data) !== parseInt(checksum.toString(), 16)) {
+            this.emit('whoops', new ChecksumMismatchError(
+                parseInt(checksum.toString(), 16),
+                CalcCRC16(data),
+            ));
+
+            // Remove the corrupt data from the buffer, in an attempt to recover.
+            this._buffer = this._buffer.subarray(stopIndex + 1);
+
+            return;
+        }
+
+        // We've received and verified a new packet, so clear the disconnect timeout.
+        this._disconnectTimeout && clearTimeout(this._disconnectTimeout);
+
+        // If we've not yet received a packet, and the incoming data has been verified
+        // emit that we've connected.
+        if (typeof this._lastPacketReceivedAt === 'undefined'){
+            this.emit('connected');
+
+            this._disconnectTimeout = setTimeout(() => {
+                this.emit('disconnected');
+            }, this.options.timeout ?? 11_000);
+        }
+
+        // Update the last time we've received and verified a packet.
+        this._lastPacketReceivedAt = new Date();
+
+        // Parse the data, without the start and stop characters and emit the result.
+        this.emit('data', this.parser.parse(
+            data.subarray(1, -1),
+        ));
 
         // Grab the remaining bytes in the buffer, just before emptying it.
         const remaining = this._buffer.subarray(stopIndex + 1);
@@ -111,28 +202,4 @@ export class P1Monitor extends EventEmitter
             this.handleIncomingData(remaining);
         }
     }
-
-    private handlePacket(data: Buffer, checksum: Buffer): void
-    {
-        if (CalcCRC16(data) !== parseInt(checksum.toString(), 16)) {
-            this.emit('error', new ChecksumMismatchError(
-                parseInt(checksum.toString(), 16),
-                CalcCRC16(data),
-            ));
-
-            return;
-        }
-
-        // Parse the data, without the start and stop characters.
-        const parsed = this.parser.parse(data.subarray(1, -1));
-
-        console.log(parsed, JSON.stringify(parsed));
-
-        this.emit('data', parsed);
-    }
 }
-
-export type P1MonitorOptions = { packet: {
-    startChar: string;
-    stopChar: string;
-}; } & Omit<SerialPortOpenOptions<AutoDetectTypes>, 'autoOpen'>;
