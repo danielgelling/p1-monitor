@@ -7,6 +7,8 @@ export type P1Packet = {
     version?: string;
     transmitted_at?: Date | DateTime;
 
+    message?: string;
+
     electricity: {
         equipment_id?: string;
         tariff?: number;
@@ -107,8 +109,14 @@ type SimpleType = {
     type: 'integer' | 'string' | 'hex-string' | 'boolean' | 'timestamp';
 };
 
+type NestedKeyOf<ObjectType extends object> =
+    {[Key in keyof ObjectType & (string | number)]: ObjectType[Key] extends object
+        ? `${Key}` | `${Key}.${NestedKeyOf<ObjectType[Key]>}`
+        : `${Key}`
+    }[keyof ObjectType & (string | number)];
+
 export type ValueType = {
-    path: string;
+    path: NestedKeyOf<P1Packet> | string;
     unit?: ValueUnit;
 } & (FloatType | ArrayType | ObjectType| SimpleType);
 
@@ -323,90 +331,6 @@ export const OBISTypeMapping: {[key in string]: ValueType} = {
         precision: 5,
         scale: 3,
         unit: 'kW',
-    },
-    '0-1:24.1.0': {
-        path: 'mbus.device1.type',
-        type: 'float',
-        precision: 3,
-        scale: 0,
-    },
-    '0-1:96.1.0': {
-        path: 'mbus.device1.equipment_id',
-        type: 'hex-string',
-    },
-    '0-1:24.2.1': {
-        path: 'mbus.device1.values',
-        type: 'object',
-        items: [{
-            path: 'measured_at',
-            type: 'timestamp',
-        }, {
-            path: 'received',
-            type: 'float',
-            unit: 'm3',
-            precision: 8,
-            scale: 3,
-        }],
-    },
-    '0-2:24.1.0': {
-        path: 'mbus.device2.type',
-        type: 'float',
-        precision: 3,
-        scale: 0,
-    },
-    '0-2:24.2.1': {
-        path: 'mbus.device2.values',
-        type: 'object',
-        items: [{
-            path: 'measured_at',
-            type: 'timestamp',
-        }, {
-            path: 'received',
-            type: 'float',
-            unit: 'm3',
-            precision: 8,
-            scale: 3,
-        }],
-    },
-    '0-3:24.1.0': {
-        path: 'mbus.device3.type',
-        type: 'float',
-        precision: 3,
-        scale: 0,
-    },
-    '0-3:24.2.1': {
-        path: 'mbus.device3.values',
-        type: 'object',
-        items: [{
-            path: 'measured_at',
-            type: 'timestamp',
-        }, {
-            path: 'received',
-            type: 'float',
-            unit: 'm3',
-            precision: 8,
-            scale: 3,
-        }],
-    },
-    '0-4:24.1.0': {
-        path: 'mbus.device4.type',
-        type: 'float',
-        precision: 3,
-        scale: 0,
-    },
-    '0-4:24.2.1': {
-        path: 'mbus.device4.values',
-        type: 'object',
-        items: [{
-            path: 'measured_at',
-            type: 'timestamp',
-        }, {
-            path: 'received',
-            type: 'float',
-            unit: 'm3',
-            precision: 8,
-            scale: 3,
-        }],
     },
 };
 

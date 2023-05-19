@@ -14,7 +14,6 @@
   "author": "Daniel Gelling <daniel@gelling.me>",
   "license": "MIT",
   "dependencies": {
-    "@byteshift/injector": "^2.1.0",
     "luxon": "^3.3.0",
     "node": "^18.16.0",
     "serialport": "^11.0.0"

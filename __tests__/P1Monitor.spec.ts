@@ -49,7 +49,7 @@ describe('Data handling', () => {
         expect(emitSpy).toBeCalledWith('connected');
         expect(emitSpy).toBeCalledWith('data', expect.objectContaining({
             vendor_id: 'ISk',
-            model_id: '2MT382-1 000',
+            model_id: '2MT382-1000',
         }));
     });
 
@@ -147,7 +147,7 @@ describe('Data handling', () => {
 
         serialPortMock.emit('data', data);
 
-        expect(emitSpy).toBeCalledWith('whoops', expect.any(ChecksumMismatchError));
+        expect(emitSpy).toBeCalledWith('error', expect.any(ChecksumMismatchError));
         expect(emitSpy).toBeCalledTimes(1);
 
         monitor.off('error', noop);

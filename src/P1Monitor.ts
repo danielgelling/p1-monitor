@@ -111,8 +111,6 @@ export class P1Monitor extends EventEmitter
         });
     }
 
-    private count = 0;
-
     private handleIncomingData(data: Buffer): void
     {
         // Add the incoming data to the buffer.
@@ -146,6 +144,7 @@ export class P1Monitor extends EventEmitter
             return;
         }
 
+        // Grab the checksum from the end of the message.
         const checksum = this._buffer.subarray(stopIndex + 1, stopIndex + 5);
 
         // Wait until we have received the full checksum.
@@ -161,7 +160,7 @@ export class P1Monitor extends EventEmitter
 
         // Verify that the calculated checksum matches the received checksum.
         if (CalcCRC16(data) !== parseInt(checksum.toString(), 16)) {
-            this.emit('whoops', new ChecksumMismatchError(
+            this.emit('error', new ChecksumMismatchError(
                 parseInt(checksum.toString(), 16),
                 CalcCRC16(data),
             ));
@@ -188,10 +187,13 @@ export class P1Monitor extends EventEmitter
         // Update the last time we've received and verified a packet.
         this._lastPacketReceivedAt = new Date();
 
-        // Parse the data, without the start and stop characters and emit the result.
-        this.emit('data', this.parser.parse(
+        const parsed = this.parser.parse(
             data.subarray(1, -1),
-        ));
+        );
+        // console.log();
+
+        // Parse the data, without the start and stop characters and emit the result.
+        this.emit('data', parsed);
 
         // Grab the remaining bytes in the buffer, just before emptying it.
         const remaining = this._buffer.subarray(stopIndex + 1);
