@@ -75,6 +75,5 @@ export declare class P1Monitor extends EventEmitter {
      * Dispose of the monitor.
      */
     dispose(): Promise<void>;
-    private count;
     private handleIncomingData;
 }

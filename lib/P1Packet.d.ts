@@ -4,6 +4,7 @@ export type P1Packet = {
     model_id: string;
     version?: string;
     transmitted_at?: Date | DateTime;
+    message?: string;
     electricity: {
         equipment_id?: string;
         tariff?: number;
@@ -97,8 +98,11 @@ type ObjectType = {
 type SimpleType = {
     type: 'integer' | 'string' | 'hex-string' | 'boolean' | 'timestamp';
 };
+type NestedKeyOf<ObjectType extends object> = {
+    [Key in keyof ObjectType & (string | number)]: ObjectType[Key] extends object ? `${Key}` | `${Key}.${NestedKeyOf<ObjectType[Key]>}` : `${Key}`;
+}[keyof ObjectType & (string | number)];
 export type ValueType = {
-    path: string;
+    path: NestedKeyOf<P1Packet> | string;
     unit?: ValueUnit;
 } & (FloatType | ArrayType | ObjectType | SimpleType);
 /**

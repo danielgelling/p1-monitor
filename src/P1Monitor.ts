@@ -187,13 +187,10 @@ export class P1Monitor extends EventEmitter
         // Update the last time we've received and verified a packet.
         this._lastPacketReceivedAt = new Date();
 
-        const parsed = this.parser.parse(
-            data.subarray(1, -1),
-        );
-        // console.log();
-
         // Parse the data, without the start and stop characters and emit the result.
-        this.emit('data', parsed);
+        this.emit('data', this.parser.parse(
+            data.subarray(1, -1),
+        ));
 
         // Grab the remaining bytes in the buffer, just before emptying it.
         const remaining = this._buffer.subarray(stopIndex + 1);
