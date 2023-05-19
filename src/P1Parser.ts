@@ -80,7 +80,7 @@ export class P1Parser
         return this._packet;
     }
 
-    private parseLine(line: Buffer, i = 0): void
+    private parseLine(line: Buffer): void
     {
         const delim = line.indexOf('(');
         const obis  = line.subarray(0, delim).toString();

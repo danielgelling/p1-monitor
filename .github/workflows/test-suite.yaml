@@ -1,4 +1,4 @@
-name: Unit tests
+name: Test suite
 
 on: push
 
@@ -24,6 +24,9 @@ jobs:
 
     - name: Build distribution code
       run: npm run build --if-present
+
+    - name: Check linting requirements
+      run: npm run lint
 
     - name: Run unit tests
       run: npm test

@@ -5,7 +5,8 @@
   "main": "lib/index.js",
   "scripts": {
     "build": "tsc",
-    "test": "jest --coverage"
+    "test": "jest --coverage",
+    "lint": "eslint ./src --ext .ts --max-warnings 0"
   },
   "repository": {
     "type": "git",
