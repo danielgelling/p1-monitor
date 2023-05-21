@@ -1,9 +1,13 @@
-import { P1Monitor }             from '../src';
+import { P1Monitor, P1Parser }   from '../src';
 import { SerialPortMock }        from 'serialport';
 import { MockBinding }           from '@serialport/binding-mock';
 import * as fs                   from 'fs';
-import { P1ParserMock }          from './__mocks__/P1ParserMock';
 import { ChecksumMismatchError } from '../src/ChecksumMismatchError';
+import { P1Packet }              from '../src/P1Packet';
+import { TimeoutExceededError }  from '../src/TimeoutExceededError';
+
+jest.useFakeTimers({ advanceTimers: true });
+const timerSpy = jest.spyOn(global, 'setTimeout');
 
 MockBinding.createPort('/dev/TEST', { echo: false, record: false });
 const serialPortMock = new SerialPortMock({
@@ -16,20 +20,39 @@ jest.mock('serialport', () => ({
     SerialPort: jest.fn().mockImplementation(() => serialPortMock),
 }));
 
-let parser, parseSpy, monitor, emitSpy;
+// Mock the parser.
+const parser = new P1Parser({ timezone: 'Europe/Amsterdam', withUnits: false });
+const parseSpy = jest.spyOn(parser, 'parse');
+const parserResult: P1Packet = {
+    vendor_id: 'Ene',
+    model_id: 'XS210 ESMR 5.0',
+    electricity: {
+        received: {},
+        delivered: {},
+        active: { current: {}, power: { negative: {}, positive: {} }, voltage: {} },
+        failures: { count: undefined, lasting_count: undefined, log: [] },
+        sags: {},
+        swells: {},
+    },
+};
+parseSpy.mockImplementation(() => parserResult);
 
-beforeEach(() => {
-    parser = new P1ParserMock({ timezone: 'Europe/Amsterdam', withUnits: false });
-    parseSpy = jest.spyOn(parser, 'parse');
+// Set up a new monitor instance for each test case.
+let monitor: P1Monitor,
+    emitSpy: jest.SpyInstance,
+    disposeSpy: jest.SpyInstance;
 
+beforeEach(async () => {
     monitor = new P1Monitor(parser, {
         path: '/dev/TEST',
         baudRate: 115200,
-        packet: { startChar: '/', stopChar: '!' },
     });
+    await monitor.start();
+    disposeSpy = jest.spyOn(monitor, 'dispose');
 
     emitSpy = jest.spyOn(monitor, 'emit');
 });
+
 afterEach(async () => {
     parseSpy.mockClear();
     emitSpy.mockClear();
@@ -37,7 +60,7 @@ afterEach(async () => {
 });
 
 describe('Data handling', () => {
-    it('can handle a DSMR 4.0 message', () => {
+    it('handles a DSMR 4.0 message', () => {
         const data = fs.readFileSync(__dirname + '/__fixtures__/p1-data/dsmr4.txt');
 
         serialPortMock.emit('data', data);
@@ -47,13 +70,10 @@ describe('Data handling', () => {
 
         expect(emitSpy).toBeCalledTimes(2);
         expect(emitSpy).toBeCalledWith('connected');
-        expect(emitSpy).toBeCalledWith('data', expect.objectContaining({
-            vendor_id: 'ISk',
-            model_id: '2MT382-1000',
-        }));
+        expect(emitSpy).toBeCalledWith('data', parserResult);
     });
 
-    it('can handle a DSMR 5.0 message', () => {
+    it('handles a DSMR 5.0 message', () => {
         const data = fs.readFileSync(__dirname + '/__fixtures__/p1-data/dsmr5.txt');
 
         serialPortMock.emit('data', data);
@@ -63,13 +83,10 @@ describe('Data handling', () => {
 
         expect(emitSpy).toBeCalledTimes(2);
         expect(emitSpy).toBeCalledWith('connected');
-        expect(emitSpy).toBeCalledWith('data', expect.objectContaining({
-            vendor_id: 'Ene',
-            model_id: 'T210-D ESMR5.0',
-        }));
+        expect(emitSpy).toBeCalledWith('data', parserResult);
     });
 
-    it('can handle a ESMR 5.0 message', () => {
+    it('handles a ESMR 5.0 message', () => {
         const data = fs.readFileSync(__dirname + '/__fixtures__/p1-data/esmr5.txt');
 
         serialPortMock.emit('data', data);
@@ -79,17 +96,11 @@ describe('Data handling', () => {
 
         expect(emitSpy).toBeCalledTimes(2);
         expect(emitSpy).toBeCalledWith('connected');
-        expect(emitSpy).toBeCalledWith('data', expect.objectContaining({
-            vendor_id: 'Ene',
-            model_id: 'XS210 ESMR 5.0',
-        }));
+        expect(emitSpy).toBeCalledWith('data', parserResult);
     });
 
-    it('can handle a lot of small chunks at once', () => {
+    it('handles a lot of small chunks at once', () => {
         const data = fs.readFileSync(__dirname + '/__fixtures__/p1-data/data-stream.txt');
-
-        const parsed = {};
-        parseSpy.mockImplementation(() => parsed);
 
         // Emit the data is chunks of 4 bytes.
         let i = 0;
@@ -102,14 +113,11 @@ describe('Data handling', () => {
 
         expect(emitSpy).toBeCalledTimes(15); // 14 data + 1 connected event.
         expect(emitSpy).toBeCalledWith('connected');
-        expect(emitSpy).toBeCalledWith('data', parsed);
+        expect(emitSpy).toBeCalledWith('data', parserResult);
     });
 
-    it('can handle a buffer containing multiple packets', () => {
+    it('handles a buffer containing multiple packets', () => {
         const data = fs.readFileSync(__dirname + '/__fixtures__/p1-data/data-stream.txt');
-
-        const parsed = {};
-        parseSpy.mockImplementation(() => parsed);
 
         serialPortMock.emit('data', data);
 
@@ -117,26 +125,33 @@ describe('Data handling', () => {
 
         expect(emitSpy).toBeCalledTimes(15); // 14 data + 1 connected event.
         expect(emitSpy).toBeCalledWith('connected');
-        expect(emitSpy).toBeCalledWith('data', parsed);
+        expect(emitSpy).toBeCalledWith('data', parserResult);
     });
 
-    it('can handle data starting mid-message', () => {
+    it('handles data starting mid-message', () => {
         const data = fs.readFileSync(__dirname + '/__fixtures__/p1-data/stop-character-at-start.txt');
 
-        // serialPortMock.emit('data', data);
+        serialPortMock.emit('data', data);
 
-        const parsed = {};
-        parseSpy.mockImplementation(() => parsed);
+        expect(parseSpy).toBeCalledTimes(2);
+
+        expect(emitSpy).toBeCalledWith('connected');
+        expect(emitSpy).toBeCalledWith('data', parserResult);
+        expect(emitSpy).toBeCalledTimes(3);
+    });
+
+    it('handles data starting mid-message, emitted in chunks', () => {
+        const data = fs.readFileSync(__dirname + '/__fixtures__/p1-data/stop-character-at-start.txt');
 
         let i = 0;
         while (i <= data.length) {
-            serialPortMock.emit('data', data.subarray(i, i += 4));
+            serialPortMock.emit('data', data.subarray(i, i += 16));
         }
 
         expect(parseSpy).toBeCalledTimes(2);
 
         expect(emitSpy).toBeCalledWith('connected');
-        expect(emitSpy).toBeCalledWith('data', parsed);
+        expect(emitSpy).toBeCalledWith('data', parserResult);
         expect(emitSpy).toBeCalledTimes(3);
     });
 
@@ -147,34 +162,38 @@ describe('Data handling', () => {
 
         serialPortMock.emit('data', data);
 
+        expect(parseSpy).toBeCalledTimes(0);
+
         expect(emitSpy).toBeCalledWith('error', expect.any(ChecksumMismatchError));
         expect(emitSpy).toBeCalledTimes(1);
 
         monitor.off('error', noop);
     });
 
-    it('emits disconnect after the default 11s timeout', async () => {
+    it('emits close after the default 11s timeout', async () => {
         // Only after we've connected we'll time out.
         const data = fs.readFileSync(__dirname + '/__fixtures__/p1-data/dsmr5.txt');
         serialPortMock.emit('data', data);
         expect(emitSpy).toBeCalledWith('connected');
-        expect(emitSpy).toBeCalledWith('data', expect.anything());
+        expect(emitSpy).toBeCalledWith('data', parserResult);
 
-        // wait 11.1s before expecting the disconnect to occur.
-        await new Promise(res => setTimeout(res, 11_100));
+        expect(emitSpy).not.toBeCalledWith('close');
 
-        expect(emitSpy).toBeCalledWith('disconnected');
-    }, 12_000);
+        expect(timerSpy).toHaveBeenLastCalledWith(expect.any(Function), 11_000);
 
-    it('emits disconnect after the given 1s timeout', async () => {
-        await monitor.dispose();
+        jest.runAllTimers();
 
+        expect(emitSpy).toBeCalledWith('close', expect.any(TimeoutExceededError));
+        expect(disposeSpy).toBeCalledTimes(1);
+    });
+
+    it('emits close after the given 1s timeout', async () => {
         monitor = new P1Monitor(parser, {
             path: '/dev/TEST',
             baudRate: 115200,
-            packet: { startChar: '/', stopChar: '!' },
-            timeout: 1_000,
+            timeout: 1000,
         });
+        await monitor.start();
 
         emitSpy = jest.spyOn(monitor, 'emit');
 
@@ -182,13 +201,34 @@ describe('Data handling', () => {
         const data = fs.readFileSync(__dirname + '/__fixtures__/p1-data/dsmr5.txt');
         serialPortMock.emit('data', data);
         expect(emitSpy).toBeCalledWith('connected');
-        expect(emitSpy).toBeCalledWith('data', expect.anything());
+        expect(emitSpy).toBeCalledWith('data', parserResult);
 
-        // wait 1.1s before expecting the disconnect to occur.
-        await new Promise(res => setTimeout(res, 1100));
+        expect(emitSpy).not.toBeCalledWith('close');
 
-        expect(emitSpy).toBeCalledWith('disconnected');
-    }, 2_000);
+        expect(timerSpy).toHaveBeenLastCalledWith(expect.any(Function), 1000);
+
+        jest.runAllTimers();
+
+        expect(emitSpy).toBeCalledWith('close', expect.any(TimeoutExceededError));
+        expect(disposeSpy).toBeCalledTimes(1);
+    });
+
+    it('considers the given start and stop characters as options', async () => {
+        monitor = new P1Monitor(parser, {
+            path: '/dev/TEST',
+            baudRate: 115200,
+            packet: { startChar: '^', stopChar: '&' },
+            timeout: 1000,
+        });
+        await monitor.start();
+
+        emitSpy = jest.spyOn(monitor, 'emit');
+
+        const data = fs.readFileSync(__dirname + '/__fixtures__/p1-data/unusual-start-stop-chars.txt');
+        serialPortMock.emit('data', data);
+        expect(emitSpy).toBeCalledWith('connected');
+        expect(emitSpy).toBeCalledWith('data', parserResult);
+    });
 });
 
 describe('Event propagation', () => {

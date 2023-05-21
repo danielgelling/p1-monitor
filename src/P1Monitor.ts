@@ -5,25 +5,26 @@ import { AutoDetectTypes }                   from '@serialport/bindings-cpp';
 import { CalcCRC16 }                         from './Util/CalcCRC16';
 import { ChecksumMismatchError }             from './ChecksumMismatchError';
 import { P1Parser }                          from './P1Parser';
+import { TimeoutExceededError }              from './TimeoutExceededError';
 
 export type P1MonitorOptions = {
-    packet: {
+    packet?: {
         /**
-         * The character that denotes the start of a P1 message.
+         * The character that denotes the start of the data in a P1 message.
          *
          * Defaults to: `/`
          */
         startChar?: string;
         /**
-         * The character that denotes the end of a P1 message.
+         * The character that denotes the end of the data in a P1 message.
          *
          * Defaults to: `!`
          */
         stopChar?: string;
     };
     /**
-     * A timeout, in milliseconds, after the moment we received our last message,
-     * to consider the serial port disconnected.
+     * A timeout, in milliseconds, after which the last message is received, to
+     * consider the serial port connection closed.
      *
      * Defaults to: 11 seconds.
      */
@@ -32,19 +33,14 @@ export type P1MonitorOptions = {
 
 export interface P1Monitor {
     /**
-     * Emitted when the P1 monitor is connected to the serial port.
+     * Emitted when the first message is received by the P1 monitor.
      */
     on(event: 'connected', listener: () => void): this;
 
     /**
-     * Emitted when the P1 monitor is disconnected from the serial port.
+     * Emitted when a new message is received on the serial port.
      */
-    on(event: 'disconnected', listener: () => void): this;
-
-    /**
-     * Emitted when new data is received on the serial port.
-     */
-    on(event: 'data', listener: (data: P1Packet, raw: string) => void): this;
+    on(event: 'data', listener: (data: P1Packet) => void): this;
 
     /**
      * Emitted when an error occurs.
@@ -52,7 +48,7 @@ export interface P1Monitor {
     on(event: 'error', listener: (error: Error) => void): this;
 
     /**
-     * Emitted when the serial connection closed.
+     * Emitted when the serial port connection is closed.
      */
     on(event: 'close', listener: (error?: Error) => void): this;
 }
@@ -62,7 +58,7 @@ export class P1Monitor extends EventEmitter
     /**
      * The serial port API connected to the P1 port.
      */
-    private readonly _port: SerialPort;
+    private _port: SerialPort;
 
     /**
      * A buffer to store the incoming data in until a stop character is received.
@@ -87,8 +83,14 @@ export class P1Monitor extends EventEmitter
         private readonly options: P1MonitorOptions,
     ) {
         super();
+    }
 
-        this._port = new SerialPort({ autoOpen: true, ...options });
+    /**
+     * Start the monitor.
+     */
+    public async start(): Promise<void>
+    {
+        this._port = new SerialPort({ autoOpen: true, ...this.options });
 
         this._port.on('error', (e) => this.emit('error', e));
         this._port.on('close', (e) => this.emit('close', e));
@@ -118,14 +120,14 @@ export class P1Monitor extends EventEmitter
 
         // Keep buffering the incoming data until a stop character is found.
         // Unless we're waiting to receive (the rest of) the checksum.
-        if (data.indexOf(this.options.packet.stopChar ?? '!') === -1
+        if (data.indexOf(this.options.packet?.stopChar ?? '!') === -1
             && ! this._waitingForChecksum
         ) {
             return;
         }
 
-        const startIndex = this._buffer.indexOf(this.options.packet.startChar ?? '/');
-        const stopIndex  = this._buffer.indexOf(this.options.packet.stopChar ?? '!');
+        const startIndex = this._buffer.indexOf(this.options.packet?.startChar ?? '/');
+        const stopIndex  = this._buffer.indexOf(this.options.packet?.stopChar ?? '!');
 
         // If we haven't found a start character clear the buffer and
         // keep waiting for more data.
@@ -180,7 +182,8 @@ export class P1Monitor extends EventEmitter
             this.emit('connected');
 
             this._disconnectTimeout = setTimeout(() => {
-                this.emit('disconnected');
+                this.emit('close', new TimeoutExceededError(this.options.timeout ?? 11_000));
+                this.dispose().then(void 0);
             }, this.options.timeout ?? 11_000);
         }
 

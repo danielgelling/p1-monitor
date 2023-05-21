@@ -1,7 +1,7 @@
 import { MBusTypeMapping, OBISTypeMapping, P1Packet, Value, ValueType } from './P1Packet';
 import { DateTime, IANAZone }                                           from 'luxon';
 import * as console                                                     from 'console';
-import { NestedObject }                                                 from './Util/NestedObject';
+import { AssignNestedValue }                                            from './Util/AssignNestedValue';
 
 export type P1ParserOptions = {
     /**
@@ -26,9 +26,21 @@ export type P1ParserOptions = {
 
 export class P1Parser
 {
+    /**
+     * Contains the data of the packet that is currently being parsed.
+     */
     private _packet: P1Packet;
+
+    /**
+     * Keeps track of the MBus device data, so at the end we can aggregate it.
+     */
     private _mbus: { [key in number]: { [path in string]: unknown } } = {};
 
+    /**
+     *  The IANA timezone identifier configured in your Smart Meter.
+     *
+     *  Eg: "Europe/Amsterdam" or "America/New_York"
+     */
     private readonly _timezone: IANAZone;
 
     public constructor(private readonly _options: P1ParserOptions)
@@ -40,16 +52,24 @@ export class P1Parser
         }
     }
 
+    /**
+     * Parse the data packet into a P1Packet object. The data is expected to
+     * contain the contents of a DSMR/ESMR data packet, so excluding the
+     * start/stop characters and checksum.
+     */
     public parse(data: Buffer): P1Packet
     {
         let line: Buffer;
         let eol = data.indexOf('\r\n');
 
+        // Initialize a new packet with the vendor and model ids. Also initialize
+        // some properties as undefined, to nicely structure the result.
         this._packet = {
             vendor_id: data.subarray(0, 3).toString(),
             model_id:  data.subarray(5, eol).toString(),
             version: undefined,
             transmitted_at: undefined,
+            message: undefined,
             electricity: {
                 equipment_id: undefined,
                 tariff: undefined,
@@ -62,8 +82,10 @@ export class P1Parser
             },
         };
 
+        // Ignore the first line, plus the CR LF.
         data = data.subarray(eol + 2);
 
+        // As long as there's data, keep parsing.
         while (data.length > 0) {
             eol  = data.indexOf('\r\n');
             line = data.subarray(0, eol);
@@ -80,6 +102,9 @@ export class P1Parser
         return this._packet;
     }
 
+    /**
+     * Parse a single line of the data packet.
+     */
     private parseLine(line: Buffer): void
     {
         const delim = line.indexOf('(');
@@ -104,9 +129,12 @@ export class P1Parser
             return;
         }
 
-        NestedObject(this._packet, mapping.path, this.parseValue(mapping, value));
+        AssignNestedValue(this._packet, mapping.path, this.parseValue(mapping, value));
     }
 
+    /**
+     * Parse the given value according to its mapping.
+     */
     private parseValue(mapping: ValueType, value: string): unknown
     {
         switch (mapping.type) {
@@ -204,6 +232,9 @@ export class P1Parser
         }
     }
 
+    /**
+     * Parse the data line for an MBus device.
+     */
     private parseMBusData(mbus: RegExpMatchArray, value: string): void
     {
         if (typeof mbus.groups === 'undefined') {

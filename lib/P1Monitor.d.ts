@@ -5,23 +5,23 @@ import { SerialPortOpenOptions } from 'serialport';
 import { AutoDetectTypes } from '@serialport/bindings-cpp';
 import { P1Parser } from './P1Parser';
 export type P1MonitorOptions = {
-    packet: {
+    packet?: {
         /**
-         * The character that denotes the start of a P1 message.
+         * The character that denotes the start of the data in a P1 message.
          *
          * Defaults to: `/`
          */
         startChar?: string;
         /**
-         * The character that denotes the end of a P1 message.
+         * The character that denotes the end of the data in a P1 message.
          *
          * Defaults to: `!`
          */
         stopChar?: string;
     };
     /**
-     * A timeout, in milliseconds, after the moment we received our last message,
-     * to consider the serial port disconnected.
+     * A timeout, in milliseconds, after which the last message is received, to
+     * consider the serial port connection closed.
      *
      * Defaults to: 11 seconds.
      */
@@ -29,23 +29,19 @@ export type P1MonitorOptions = {
 } & Omit<SerialPortOpenOptions<AutoDetectTypes>, 'autoOpen'>;
 export interface P1Monitor {
     /**
-     * Emitted when the P1 monitor is connected to the serial port.
+     * Emitted when the first message is received by the P1 monitor.
      */
     on(event: 'connected', listener: () => void): this;
     /**
-     * Emitted when the P1 monitor is disconnected from the serial port.
+     * Emitted when a new message is received on the serial port.
      */
-    on(event: 'disconnected', listener: () => void): this;
-    /**
-     * Emitted when new data is received on the serial port.
-     */
-    on(event: 'data', listener: (data: P1Packet, raw: string) => void): this;
+    on(event: 'data', listener: (data: P1Packet) => void): this;
     /**
      * Emitted when an error occurs.
      */
     on(event: 'error', listener: (error: Error) => void): this;
     /**
-     * Emitted when the serial connection closed.
+     * Emitted when the serial port connection is closed.
      */
     on(event: 'close', listener: (error?: Error) => void): this;
 }
@@ -55,7 +51,7 @@ export declare class P1Monitor extends EventEmitter {
     /**
      * The serial port API connected to the P1 port.
      */
-    private readonly _port;
+    private _port;
     /**
      * A buffer to store the incoming data in until a stop character is received.
      */
@@ -71,6 +67,10 @@ export declare class P1Monitor extends EventEmitter {
     private _lastPacketReceivedAt?;
     private _disconnectTimeout;
     constructor(parser: P1Parser, options: P1MonitorOptions);
+    /**
+     * Start the monitor.
+     */
+    start(): Promise<void>;
     /**
      * Dispose of the monitor.
      */

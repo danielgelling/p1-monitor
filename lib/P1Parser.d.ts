@@ -20,12 +20,37 @@ export type P1ParserOptions = {
 };
 export declare class P1Parser {
     private readonly _options;
+    /**
+     * Contains the data of the packet that is currently being parsed.
+     */
     private _packet;
+    /**
+     * Keeps track of the MBus device data, so at the end we can aggregate it.
+     */
     private _mbus;
+    /**
+     *  The IANA timezone identifier configured in your Smart Meter.
+     *
+     *  Eg: "Europe/Amsterdam" or "America/New_York"
+     */
     private readonly _timezone;
     constructor(_options: P1ParserOptions);
+    /**
+     * Parse the data packet into a P1Packet object. The data is expected to
+     * contain the contents of a DSMR/ESMR data packet, so excluding the
+     * start/stop characters and checksum.
+     */
     parse(data: Buffer): P1Packet;
+    /**
+     * Parse a single line of the data packet.
+     */
     private parseLine;
+    /**
+     * Parse the given value according to its mapping.
+     */
     private parseValue;
+    /**
+     * Parse the data line for an MBus device.
+     */
     private parseMBusData;
 }
