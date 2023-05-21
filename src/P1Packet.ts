@@ -84,10 +84,19 @@ export type P1Packet = {
 
 export type ValueUnit = 'kWh' | 'kW' | 'V' | 'A' | 'm3' | 'GJ' | 's';
 
-export type Value<T extends ValueUnit> = number | {
-    value: number;
-    unit: T;
-};
+// CS ignore to allow for specifying the unit in the type.
+//
+// TODO: Figure out how to allow for the type to be:
+//       ```
+//       number | {
+//           value: number;
+//           unit: T;
+//       };
+//       ```
+//      while considering the value of the `P1ParserOptions.withUnits` option.
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export type Value<T extends ValueUnit> = number;
 
 type FloatType = {
     type: 'float';

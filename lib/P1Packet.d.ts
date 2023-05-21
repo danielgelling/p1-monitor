@@ -78,10 +78,7 @@ export type P1Packet = {
     };
 };
 export type ValueUnit = 'kWh' | 'kW' | 'V' | 'A' | 'm3' | 'GJ' | 's';
-export type Value<T extends ValueUnit> = number | {
-    value: number;
-    unit: T;
-};
+export type Value<T extends ValueUnit> = number;
 type FloatType = {
     type: 'float';
     precision: number;
