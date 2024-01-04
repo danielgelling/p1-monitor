@@ -31,7 +31,7 @@ export type P1MonitorOptions = {
     timeout?: number;
 } & Omit<SerialPortOpenOptions<AutoDetectTypes>, 'autoOpen'>;
 
-export interface P1Monitor {
+interface P1MonitorInterface {
     /**
      * Emitted when the first message is received by the P1 monitor.
      */
@@ -53,7 +53,7 @@ export interface P1Monitor {
     on(event: 'close', listener: (error?: Error) => void): this;
 }
 
-export class P1Monitor extends EventEmitter
+export class P1Monitor extends EventEmitter implements P1MonitorInterface
 {
     /**
      * The serial port API connected to the P1 port.
