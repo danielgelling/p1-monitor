@@ -1,6 +1,6 @@
 {
   "name": "@danielgelling/p1-monitor",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "Module to monitor a Smart Meter using its P1 port",
   "main": "lib/index.js",
   "scripts": {
