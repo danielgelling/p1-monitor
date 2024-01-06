@@ -5,21 +5,21 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+
     permissions:
       contents: write
-      packages: write
+      id-token: write
+
     steps:
       - uses: actions/checkout@v4
       - run: git config user.name release-bot
       - run: git config user.email release-bot@github.com
 
-      # Setup .npmrc file to publish to GitHub Packages
       - uses: actions/setup-node@v3
         with:
           node-version: '20.x'
-          registry-url: 'https://npm.pkg.github.com'
-          # Defaults to the user or organization that owns the workflow file
-          scope: '@danielgelling'
+          registry-url: 'https://registry.npmjs.org/'
+
       - run: npm ci
 
       - run: |
@@ -30,6 +30,6 @@ jobs:
         env:
           TAG_NAME: ${{ github.event.release.tag_name }}
 
-      - run: npm publish
+      - run: npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -1,7 +1,9 @@
 <p>
 <a href="https://github.com/danielgelling/p1-monitor/actions/workflows/test-suite.yaml"><img alt="Test suite" src="https://github.com/danielgelling/p1-monitor/actions/workflows/test-suite.yaml/badge.svg?branch=master" /></a>
-<a href="https://github.com/danielgelling/p1-monitor/pkgs/npm/p1-monitor"><img alt="Downloads" src="https://img.shields.io/badge/downloads-69-green" /></a>
-<a href="https://github.com/danielgelling/p1-monitor/blob/master/LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-green.svg" /></a>
+<a href="https://github.com/danielgelling/p1-monitor/actions/workflows/test-suite.yaml"><img alt="Test suite" src="https://img.shields.io/github/issues-raw/danielgelling/p1-monitor" /></a>
+<a href="https://www.npmjs.com/package/p1-monitor"><img alt="Downloads" src="https://img.shields.io/npm/dt/p1-monitor" /></a>
+<a href="https://www.npmjs.com/package/p1-monitor/v/latest?activeTab=versions"><img alt="Latest version" src="https://img.shields.io/npm/v/p1-monitor" /></a>
+<a href="https://github.com/danielgelling/p1-monitor/blob/master/LICENSE"><img alt="License: MIT" src="https://img.shields.io/npm/l/p1-monitor" /></a>
 </p>
 
 # About

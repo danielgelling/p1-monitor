@@ -1,7 +1,9 @@
 {
-  "name": "@danielgelling/p1-monitor",
+  "name": "p1-monitor",
   "version": "1.0.0",
   "description": "Module to monitor a Smart Meter using its P1 port",
+  "author": "Daniel Gelling <daniel@gelling.me>",
+  "license": "MIT",
   "main": "lib/index.js",
   "scripts": {
     "build": "tsc",
@@ -10,10 +12,8 @@
   },
   "repository": {
     "type": "git",
-    "url": "github.com/danielgelling/p1-monitor"
+    "url": "https://github.com/danielgelling/p1-monitor"
   },
-  "author": "Daniel Gelling <daniel@gelling.me>",
-  "license": "MIT",
   "dependencies": {
     "luxon": "^3.4.4",
     "node": "^20.10.0",
