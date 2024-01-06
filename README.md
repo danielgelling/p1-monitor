@@ -1,4 +1,4 @@
-<p>
+<p align="center">
 <a href="https://github.com/danielgelling/p1-monitor/actions/workflows/test-suite.yaml"><img alt="Test suite" src="https://github.com/danielgelling/p1-monitor/actions/workflows/test-suite.yaml/badge.svg?branch=master" /></a>
 <a href="https://github.com/danielgelling/p1-monitor/actions/workflows/test-suite.yaml"><img alt="Test suite" src="https://img.shields.io/github/issues-raw/danielgelling/p1-monitor" /></a>
 <a href="https://www.npmjs.com/package/p1-monitor"><img alt="Downloads" src="https://img.shields.io/npm/dt/p1-monitor" /></a>
