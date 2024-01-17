@@ -1,0 +1,69 @@
+{
+    "vendor_id": "Ene",
+    "model_id": "T210-D ESMR5.0",
+    "version": "50",
+    "transmitted_at": "2018-01-08T19:25:37.000Z",
+    "electricity": {
+        "equipment_id": "\u00124Vx",
+        "tariff": 2,
+        "received": {
+            "tariff1": 0.855,
+            "tariff2": 0.693,
+            "active": 0.134
+        },
+        "delivered": {
+            "tariff1": 0.084,
+            "tariff2": 0,
+            "active": 0
+        },
+        "active": {
+            "current": {
+                "line1": 0,
+                "line2": 0,
+                "line3": 0
+            },
+            "power": {
+                "negative": {
+                    "line1": 0,
+                    "line2": 0,
+                    "line3": 0
+                },
+                "positive": {
+                    "line1": 0.094,
+                    "line2": 0.04,
+                    "line3": 0
+                }
+            },
+            "voltage": {
+                "line1": 229,
+                "line2": 226,
+                "line3": 229
+            }
+        },
+        "failures": {
+            "count": 8,
+            "lasting_count": 4,
+            "log": [
+                {
+                    "start_time": "2017-10-24T18:46:25.000Z",
+                    "duration": 305
+                }
+            ]
+        },
+        "sags": {
+            "line1": 3,
+            "line2": 3,
+            "line3": 2
+        },
+        "swells": {
+            "line1": 0,
+            "line2": 0,
+            "line3": 0
+        }
+    },
+    "gas": {
+        "equipment_id": "\u00124Vx",
+        "measured_at": "2018-01-08T19:55:00.000Z",
+        "received": 1.29
+    }
+}

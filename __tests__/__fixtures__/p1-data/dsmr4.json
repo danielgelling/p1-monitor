@@ -1,0 +1,58 @@
+{
+    "vendor_id": "ISk",
+    "model_id": "2MT382-1000",
+    "version": "42",
+    "transmitted_at": "2010-12-09T10:30:20.000Z",
+    "message": "0123456789:;<=>?0123456789:;<=>?0123456789:;<=>?0123456789:;<=>?0123456789:;<=>?",
+    "electricity": {
+        "equipment_id": "K8EG004046395507",
+        "tariff": 2,
+        "received": {
+            "tariff1": 123456.789,
+            "tariff2": 123456.789,
+            "active": 1.193
+        },
+        "delivered": {
+            "tariff1": 123456.789,
+            "tariff2": 123456.789,
+            "active": 0
+        },
+        "active": {
+            "current": {},
+            "power": {
+                "negative": {},
+                "positive": {}
+            },
+            "voltage": {}
+        },
+        "failures": {
+            "count": 4,
+            "lasting_count": 2,
+            "log": [
+                {
+                    "start_time": "2010-12-08T14:24:15.000Z",
+                    "duration": 240
+                },
+                {
+                    "start_time": "2010-12-08T14:10:04.000Z",
+                    "duration": 301
+                }
+            ]
+        },
+        "sags": {
+            "line1": 2,
+            "line2": 1,
+            "line3": 0
+        },
+        "swells": {
+            "line1": 0,
+            "line2": 3,
+            "line3": 0
+        }
+    },
+    "gas": {
+        "equipment_id": "2222ABCD123456789",
+        "measured_at": "2010-12-09T10:00:00.000Z",
+        "received": 12785.123
+    }
+}

@@ -1,0 +1,69 @@
+{
+    "vendor_id": "Ene",
+    "model_id": "XS210 ESMR 5.0",
+    "version": "50",
+    "transmitted_at": "2023-05-07T14:55:13.000Z",
+    "electricity": {
+        "equipment_id": "E0047000021993518",
+        "tariff": 1,
+        "received": {
+            "tariff1": 2107.618,
+            "tariff2": 2543.819,
+            "active": 0.195
+        },
+        "delivered": {
+            "tariff1": 0.014,
+            "tariff2": 0,
+            "active": 0
+        },
+        "active": {
+            "current": {
+                "line1": 1
+            },
+            "power": {
+                "negative": {
+                    "line1": 0
+                },
+                "positive": {
+                    "line1": 0.195
+                }
+            },
+            "voltage": {
+                "line1": 229
+            }
+        },
+        "failures": {
+            "count": 226,
+            "lasting_count": 5,
+            "log": [
+                {
+                    "start_time": "2020-11-06T11:31:17.000Z",
+                    "duration": 8311
+                },
+                {
+                    "start_time": "2019-09-04T08:29:56.000Z",
+                    "duration": 3484
+                },
+                {
+                    "start_time": "2018-08-11T00:23:08.000Z",
+                    "duration": 4225
+                },
+                {
+                    "start_time": "2018-07-16T07:16:35.000Z",
+                    "duration": 2216
+                }
+            ]
+        },
+        "sags": {
+            "line1": 5
+        },
+        "swells": {
+            "line1": 0
+        }
+    },
+    "gas": {
+        "equipment_id": "G0053003673865917",
+        "measured_at": "2023-05-07T14:55:00.000Z",
+        "received": 5159.638
+    }
+}

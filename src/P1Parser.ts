@@ -52,7 +52,7 @@ export class P1Parser
         this._timezone = IANAZone.create(_options.timezone);
 
         if (! this._timezone.isValid) {
-            throw new Error('Invalid timezone.');
+            throw new Error(`Invalid timezone: "${_options.timezone}".`);
         }
     }
 
