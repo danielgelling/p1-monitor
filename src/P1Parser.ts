@@ -5,7 +5,8 @@ import { AssignNestedValue }                                            from './
 
 export type P1ParserOptions = {
     /**
-     *  The IANA timezone identifier configured in your Smart Meter.
+     *  The IANA timezone identifier, configured in your Smart Meter, that will
+     *  be used when parsing the timestamps of the P1 messages.
      *
      *  Eg: "Europe/Amsterdam" or "America/New_York"
      */
@@ -13,13 +14,16 @@ export type P1ParserOptions = {
 
     /**
      * Whether to return a value with their unit, if specified.
+     *
      * Defaults to: false.
      */
     withUnits?: boolean;
 
     /**
      * Whether the date values are returned as a Luxon DateTime,
-     * or as the default JS Date object. Defaults to: false.
+     * or as the default JS Date object.
+     *
+     * Defaults to: false.
      */
     asLuxon?: boolean;
 };

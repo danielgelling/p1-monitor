@@ -3,9 +3,9 @@ import { P1Packet }                          from './P1Packet';
 import { SerialPort, SerialPortOpenOptions } from 'serialport';
 import { AutoDetectTypes }                   from '@serialport/bindings-cpp';
 import { CalcCRC16 }                         from './Util/CalcCRC16';
-import { ChecksumMismatchError }             from './ChecksumMismatchError';
+import { ChecksumMismatchError }             from './Error/ChecksumMismatchError';
 import { P1Parser }                          from './P1Parser';
-import { TimeoutExceededError }              from './TimeoutExceededError';
+import { TimeoutExceededError }              from './Error/TimeoutExceededError';
 
 export type P1MonitorOptions = {
     packet?: {
