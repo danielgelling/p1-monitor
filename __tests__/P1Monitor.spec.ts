@@ -2,9 +2,9 @@ import { P1Monitor, P1Parser }   from '../src';
 import { SerialPortMock }        from 'serialport';
 import { MockBinding }           from '@serialport/binding-mock';
 import * as fs                   from 'fs';
-import { ChecksumMismatchError } from '../src/ChecksumMismatchError';
+import { ChecksumMismatchError } from '../src/Error/ChecksumMismatchError';
 import { P1Packet }              from '../src/P1Packet';
-import { TimeoutExceededError }  from '../src/TimeoutExceededError';
+import { TimeoutExceededError }  from '../src/Error/TimeoutExceededError';
 
 jest.useFakeTimers({ advanceTimers: true });
 const timerSpy = jest.spyOn(global, 'setTimeout');
