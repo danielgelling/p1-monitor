@@ -3,8 +3,14 @@
 
 version: 2
 updates:
+  # Enable version updates for npm packages
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
-      interval: "daily"
+      interval: "weekly"
     rebase-strategy: "disabled"
+    groups:
+      dev-dependencies:
+        dependency-type: development
+      dependencies:
+        dependency-type: production
